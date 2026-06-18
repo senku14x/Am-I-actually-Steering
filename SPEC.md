@@ -16,9 +16,14 @@ artifacts** (chains, segments, annotations, activations). Dedicated GPU(s) avail
 spend is cost-sensitive but the decisive Stage-1 needs **zero new annotation**.
 
 **Decisions locked:** standalone GitHub repo; **three source-model families** —
-DeepSeek-R1-Distill-Qwen-14B + DeepSeek-R1-Distill-Llama-8B + one newer open-weight reasoning model
-from a distinct family (confirm at implementation by availability + VRAM; pick the most
-architecturally distinct). Geometry on all three (cheap); interventions Qwen-first.
+DeepSeek-R1-Distill-Qwen-14B (primary), DeepSeek-R1-Distill-Llama-8B (second family), and
+**Phi-4-reasoning ~14B** (Microsoft; distinct vendor + *native* reasoning recipe, not an
+R1-distill — breaks the recipe confound; size-matched to Qwen-14B so family/recipe is isolated at
+fixed scale). Plus Qwen2.5-0.5B-Instruct for CI only (not evidence). Geometry on all three (cheap);
+interventions Qwen-first. Note: Phi-4-reasoning needs its own think-region parser + chat template —
+read its delimiters and template from the model card/tokenizer at download (do NOT assume R1's
+`<think>`/`</think>` scheme; the parser is config-driven) — and its own headline layer (from the
+layer-sweep, not assumed); annotation quality on its text is unmeasured (same caveat as Llama).
 
 ---
 
@@ -57,7 +62,7 @@ staged in the monorepo dev branch for safekeeping; lift to the standalone repo o
 ```
 strategic-geometry-v2/
   SPEC.md  README.md  requirements.txt  .gitignore
-  configs/   base.yaml; model_{qwen0_5b,qwen14b,llama8b,...}.yaml; exp_{stage1,intervention}.yaml
+  configs/   base.yaml; model_{qwen0_5b,qwen14b,llama8b,phi4_reasoning}.yaml; exp_{stage1,intervention}.yaml
   data/      final_dataset_v2.json; heldout_v2.json   (large artifacts gitignored)
   src/strat_geom/
     config.py dataset.py io.py generate.py segment.py annotate.py activations.py
@@ -73,17 +78,26 @@ strategic-geometry-v2/
 ## 2. Generation / annotation / extraction pipeline (REGENERATE everything)
 
 1. **Chains:** fixed decoding (`do_sample=False`; `max_new_tokens` set from the measured length
-   distribution so <10% truncation — v1 had 30–46%). Save full_output + parsed think/answer +
+   distribution so <10% truncation — v1 had 30–46%). **Per-model chat template + think-region
+   delimiters are config-driven** — R1's `<think>`/`</think>` is not assumed for Phi-4-reasoning;
+   read its template/delimiters from the model at download. Save full_output + parsed think/answer +
    token counts + truncation flag. Reuse `run_batched`/`parse_output` (fix `n_tokens` KeyError;
    record absolute counts).
 2. **Segments:** paragraph split + 1200-char hard-wrap; persist char offsets; strict re-alignment
    test (v1 `full_output.find` is fragile to duplicate substrings — flag chains with >5% align
-   failures; fall back to offset-tracked splitting).
+   failures; fall back to offset-tracked splitting). The think/answer split uses the per-model
+   delimiters from step 1, not a hardcoded `<think>`.
 3. **Annotations:** chain-mode, fixed taxonomy (D6), temperature 0; record annotator model +
-   prompt hash. Recreate gold-calibration scripts; fresh 150-segment gold; report per-label F1.
+   prompt hash. Recreate gold-calibration scripts; fresh 150-segment gold **per model family**
+   (the taxonomy + annotator were built on R1-Qwen chains — do not assume transfer to Llama or the
+   native-recipe Phi-4); report per-label F1 per model. A materially worse F1 on a family is itself
+   a finding (label-transfer failure), not something to average away.
 4. **Activations:** all layers, mean-pooled per segment, fp16. **Measure** `mean_act_norm` per
    layer (kills hardcoded 158.6).
-5. **De-risk first** on Qwen-0.5B-Instruct, 20-task fixture (CI only, not evidence).
+5. **De-risk first** on Qwen-0.5B-Instruct, 20-task fixture (CI only, not evidence). **Phi path:**
+   before full Phi-4-reasoning generation, run a one-off de-risk on Phi-4-mini-reasoning (3.8B) on
+   the GPU box (too big for CI) to validate think-extraction, the chat template, and activation
+   hooks on the Phi tokenizer — plumbing only, not evidence.
 
 ---
 
@@ -99,7 +113,8 @@ strategic-geometry-v2/
   line, R²>0.5, payoff/none_other at bottom-left endpoint.
 - **Decision:** in-band → B; clear outlier both models → A; mixed → C. Headline = R².
 - **Cross-model:** correlate the 45-cosine vector across models and the 45-phi vector across
-  models; excess cosine-agreement beyond phi-agreement = shared model structure.
+  models; excess cosine-agreement beyond phi-agreement = shared model structure. Each model's
+  45-cosine vector is read at its *own* headline layer from the layer-sweep, not a shared raw index.
 - **Sanity:** payoff/none_other must be most-complementary & most-anti-aligned; `cos(v,v)=1`,
   `cos(v,-v)=-1`. **Reuse:** `compute_dom_vectors`, `cosine_sim`, co-occurrence counts. CPU/min.
 
@@ -166,18 +181,24 @@ steer_+α(last), steer_random(last)×5 @ matched norm, routing readout.
 
 Layer-sweep cosine + SVD-depth (free, all layers); probe-vs-DoM + reg sweep +
 within-class-variance/Fisher. Single headline layer for causal claims; sweep for geometry figures.
+**Cross-model comparisons use relative depth** (layer fraction) or each model's own layer-sweep
+peak — never a shared raw layer index (Phi-4-reasoning/Qwen-14B/Llama-8B differ in depth, ~40/48/32).
 
 ## 7. Scope discipline
 
 Geometry/calibration on all three families (free); 3-way cross-model A2 agreement is the strongest
-calibration + annotator-consistency test. Interventions Qwen-first; extend only if A clears.
+calibration + annotator-consistency test — informative *because* the third family is native-recipe
+(Phi-4-reasoning), so cross-family agreement cannot be dismissed as the shared DeepSeek-R1 teacher.
+The cleanest fixed-scale recipe contrast is Qwen-14B (R1-distill) vs Phi-4-reasoning-14B (native);
+Llama-8B is a third, off-scale point. Interventions Qwen-first; extend only if A clears.
 De-risk on Qwen-0.5B (CI). ~10 intervention conditions max. 50 strategic tasks; heldout/transfer →
 appendix.
 
 ## 8. Verification & CI
 
 - **Stage 0 (Qwen-0.5B):** activation shapes/no-NaNs; char↔token round-trip + align-failure flag;
-  DoM identities; D1 scorer unit tests.
+  DoM identities; D1 scorer unit tests. (Phi-4 think-extraction/chat-template path validated
+  separately on Phi-4-mini-reasoning per §2.5.)
 - **Stage A:** old null ≈ -0.005; new null mean < 0; payoff/none_other most complementary +
   anti-aligned; stratifier reproduces pooled value; branch decision stable across ≥3 seeds.
 - **Stage B:** ablate-then-add-back reconstructs hidden state; `add` α=0 no-op; assert steering
@@ -187,7 +208,8 @@ appendix.
 
 ## 9. Sequencing
 
-0. Coordinate standalone-repo creation/access; confirm third model family.
+0. Coordinate standalone-repo creation/access; third family locked (Phi-4-reasoning) — run the
+   Phi-path de-risk (§2.5) before full generation.
 1. Repo skeleton + `config.py`; migrate/clean dataset (D1–D6); CI smoke on Qwen-0.5B.
 2. Regenerate chains→segments→annotations→activations for all three; gold calibration; per-layer
    norms.

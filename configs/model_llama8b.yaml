@@ -1,0 +1,9 @@
+# DeepSeek-R1-Distill-Llama-8B (second source family; R1-distilled onto Llama-3.1-8B).
+# Shares the R1 reasoning recipe with the Qwen-14B primary (same teacher, different base) — this is
+# the shared-teacher leg the Phi-4-reasoning family is meant to contrast against (SPEC §7).
+model_name: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+model_short: r1_llama8b
+n_layers: 32            # Llama-3.1-8B; VERIFY from config.json
+hidden_dim: 4096        # VERIFY from config.json
+headline_layer: 16      # mid-depth start; set from the per-model layer-sweep
+max_new_tokens: 6144    # confirm from the measured length distribution (<10% truncation)
