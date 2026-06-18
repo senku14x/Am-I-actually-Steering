@@ -1,12 +1,19 @@
-# Regenerable / large artifacts — never commit
+# Regenerable / large artifacts — never commit (reproducible from a fixed-decode rerun on the host)
 results/
 *.npz
 *.npy
 *.pt
 *.safetensors
 data/chains/
+data/segments/
 data/activations/
-data/annotations/
+# NOTE: data/annotations/ is intentionally TRACKED (not listed here) — paid LLM-judge output must
+# survive the ephemeral GPU instance, so annotations travel back to GitHub.
+
+# artifacts/ holds the small DERIVED results analysed here (norms, DoM vectors, verdict, figures);
+# tracked on purpose, including any small arrays there (re-included past the *.npy/*.npz rules above).
+!artifacts/
+!artifacts/**
 
 # Python
 __pycache__/
