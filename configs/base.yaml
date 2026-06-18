@@ -1,0 +1,29 @@
+# Base config. Paths use ${env:VAR:default}. Model-specific configs override on top.
+seed: 42
+
+# Data + outputs (env-overridable so the same config works on any host)
+data_dir: ${env:DATA_ROOT:./data}
+results_dir: ${env:RESULTS_ROOT:./results}
+
+# Fixed 10-label taxonomy (D6: frozen for the geometry analysis)
+labels:
+  - opponent_modeling
+  - iterated_reasoning
+  - equilibrium_identification
+  - payoff_analysis
+  - strategic_uncertainty
+  - cooperative_reasoning
+  - initialization
+  - deduction
+  - backtracking
+  - none_other
+
+# Geometry / Stage-A analysis
+think_only: true        # restrict to think-region segments
+min_count: 20           # min segments per label to include in DoM/calibration
+headline_pair: [opponent_modeling, deduction]
+
+# Stage-A null / bootstrap sizes
+n_permutation: 1000
+n_bootstrap: 1000
+n_seeds: 3

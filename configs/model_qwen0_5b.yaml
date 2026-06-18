@@ -1,0 +1,8 @@
+# Qwen2.5-0.5B-Instruct — CI / plumbing de-risk only (NOT evidence).
+# Shares the Qwen tokenizer/chat-template/arch path the hooks assume.
+model_name: Qwen/Qwen2.5-0.5B-Instruct
+model_short: qwen0_5b
+n_layers: 24
+hidden_dim: 896
+headline_layer: 12
+max_new_tokens: 1024

@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install (CPU deps only)
+        run: pip install -e ".[dev]"
+      - name: Migrate dataset (regenerates data/*_v2.json from committed inputs if present)
+        run: |
+          if [ -f data/final_dataset.json ]; then
+            python scripts/migrate_dataset.py --in-dir data --out-dir data
+          fi
+      - name: Tests
+        run: pytest

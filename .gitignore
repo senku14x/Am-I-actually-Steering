@@ -1,0 +1,22 @@
+# Regenerable / large artifacts — never commit
+results/
+*.npz
+*.npy
+*.pt
+*.safetensors
+data/chains/
+data/activations/
+data/annotations/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
