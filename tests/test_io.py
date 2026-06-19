@@ -3,7 +3,8 @@ import json
 
 from strat_geom.config import Config
 from strat_geom.io import (
-    artifact_path, config_hash, load_tasks, provenance, read_jsonl, repo_root, write_jsonl,
+    annotations_path, artifact_path, config_hash, load_tasks, provenance, read_jsonl, repo_root,
+    write_jsonl,
 )
 
 
@@ -38,3 +39,12 @@ def test_artifact_path_is_tracked_repo_location():
     ap = artifact_path(Config(model_short="qwen0_5b"), "derisk_report.json")
     assert ap.parent == repo_root() / "artifacts" / "qwen0_5b"
     assert ap.name == "derisk_report.json"
+
+
+def test_annotations_path_keyed_by_judge_for_kappa():
+    cfg = Config(model_short="qwen0_5b")
+    assert annotations_path(cfg).name == "qwen0_5b.jsonl"
+    # two different judges -> two distinct files (both kept for the κ replication)
+    a = annotations_path(cfg, judge="google/gemma-2-27b-it").name
+    b = annotations_path(cfg, judge="mistralai/mistral-small").name
+    assert a == "qwen0_5b__google-gemma-2-27b-it.jsonl" and a != b

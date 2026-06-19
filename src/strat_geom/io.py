@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -119,8 +120,15 @@ def activations_dir(cfg: Config) -> Path:
     return cfg.data_path / "activations" / cfg.model_short
 
 
-def annotations_path(cfg: Config) -> Path:
-    return cfg.data_path / "annotations" / f"{cfg.model_short}.jsonl"
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+
+
+def annotations_path(cfg: Config, judge: str | None = None) -> Path:
+    """Annotations file, keyed by subject model and (optionally) the JUDGE, so two judges' labels
+    coexist on disk for the κ replication (SPEC §5-B6)."""
+    name = cfg.model_short + (f"__{_slug(judge)}" if judge else "")
+    return cfg.data_path / "annotations" / f"{name}.jsonl"
 
 
 def artifact_path(cfg: Config, name: str) -> Path:

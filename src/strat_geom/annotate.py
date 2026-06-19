@@ -166,12 +166,24 @@ def parse_grade_response(text: str) -> dict:
 # --- client + calls (network; lazy openai) ---------------------------------
 
 def make_client(judge_cfg: dict):
-    """OpenAI-compatible client from a judge config block. `base_url` empty => OpenAI default."""
+    """OpenAI-compatible client from a judge config block (OpenRouter by default).
+
+    Key resolution: env named by `api_key_env` (OPENROUTER_API_KEY) -> JUDGE_API_KEY ->
+    OPENAI_API_KEY -> "EMPTY" (keyless local servers). OpenRouter's optional attribution headers
+    are sent when configured.
+    """
     from openai import OpenAI  # noqa: PLC0415  ([annotate] extra)
-    api_key = (os.environ.get(judge_cfg.get("api_key_env", "JUDGE_API_KEY"))
-               or os.environ.get("OPENAI_API_KEY") or "EMPTY")
-    base_url = judge_cfg.get("base_url") or None
-    return OpenAI(api_key=api_key, base_url=base_url)
+    api_key = (os.environ.get(judge_cfg.get("api_key_env", "OPENROUTER_API_KEY"))
+               or os.environ.get("JUDGE_API_KEY") or os.environ.get("OPENAI_API_KEY") or "EMPTY")
+    headers = {}
+    if judge_cfg.get("http_referer"):
+        headers["HTTP-Referer"] = judge_cfg["http_referer"]
+    if judge_cfg.get("x_title"):
+        headers["X-Title"] = judge_cfg["x_title"]
+    kwargs: dict = {"api_key": api_key, "base_url": judge_cfg.get("base_url") or None}
+    if headers:
+        kwargs["default_headers"] = headers
+    return OpenAI(**kwargs)
 
 
 def _complete(client, judge_cfg: dict, system: str, user: str) -> str:

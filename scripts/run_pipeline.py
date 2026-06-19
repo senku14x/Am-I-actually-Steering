@@ -88,6 +88,8 @@ def main() -> None:
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--stages", default="generate,segment,activations")
     ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--judge-model", default=None, help="override judge model (e.g. an openrouter slug)")
+    ap.add_argument("--judge-base-url", default=None, help="override judge base_url")
     args = ap.parse_args()
 
     overrides = {"seed": args.seed} if args.seed is not None else {}
@@ -140,7 +142,12 @@ def main() -> None:
 
     # --- annotate (LLM judge; SPEC §2.3) ----------------------------------
     if "annotate" in stages:
-        judge_cfg = cfg.extra.get("judge", {})
+        judge_cfg = dict(cfg.extra.get("judge", {}))
+        if args.judge_model:
+            judge_cfg["model"] = args.judge_model
+        if args.judge_base_url:
+            judge_cfg["base_url"] = args.judge_base_url
+        judge_model = judge_cfg.get("model")
         validate_taxonomy(cfg.labels)
         client = make_client(judge_cfg)
         ann_records: list[dict] = []
@@ -157,11 +164,13 @@ def main() -> None:
             total_unknown += n_unknown
             for r in recs:
                 label_counter.update(r["labels"])
-        write_jsonl(annotations_path(cfg), ann_records)
+        ann_path = annotations_path(cfg, judge=judge_model)      # per-judge file (κ needs both)
+        write_jsonl(ann_path, ann_records)
         report["annotation"] = {
             "n_segments_annotated": len(ann_records),
             "unknown_labels_dropped": total_unknown,        # >0 => judge drifting off-taxonomy
-            "judge_model": judge_cfg.get("model"),
+            "judge_model": judge_model,
+            "annotations_file": str(ann_path),
             "prompt_hash": annotation_prompt_hash(cfg.labels),
             "label_distribution": dict(label_counter),
         }
