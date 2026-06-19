@@ -28,15 +28,16 @@ n_permutation: 1000
 n_bootstrap: 1000
 n_seeds: 3
 
-# LLM judge / annotator (SPEC §2.3) — defaults to OpenRouter (one key, every open model). Pick CHEAP
-# open models by slug from openrouter.ai/models (many have a rate-limited ":free" tier). Independence
-# rule (we're testing for an annotation artifact, so this matters): the PRIMARY annotator should be a
-# DIFFERENT lineage than the subject — avoid Qwen/DeepSeek/Llama/Phi judges on those subjects; use a
-# second, different-lineage cheap model as the κ judge (SPEC §5-B6). Run `annotate` once per judge
-# (annotations are saved per-judge) and compute κ between the two files.
+# LLM judge / annotator (SPEC §2.3) — OpenRouter. Use strong-but-cheap open models; current good
+# picks (mid-2026): z-ai/glm-4.6, qwen/qwen3.5-27b, deepseek/deepseek-v3.2 — all ~frontier at
+# cents/Mtok, all hold a 10-label taxonomy fine. Robustness, not purity: run `annotate` with TWO
+# DIFFERENT-family judges and report κ (SPEC §5-B6); annotations are saved per-judge. Mild caveat:
+# the subjects are DeepSeek-R1 distills of Qwen/Llama, so keeping the PRIMARY judge off those vendors
+# (GLM is a clean default) makes the headline cross-model result easiest to defend — demote a
+# Qwen/DeepSeek judge to the κ check rather than the headline.
 judge:
   provider: openrouter
-  model: ${env:JUDGE_MODEL:google/gemma-2-27b-it}       # set to a CURRENT openrouter.ai/models slug
+  model: ${env:JUDGE_MODEL:z-ai/glm-4.6}                # any current openrouter.ai/models slug
   base_url: ${env:JUDGE_BASE_URL:https://openrouter.ai/api/v1}
   api_key_env: OPENROUTER_API_KEY                        # falls back to JUDGE_API_KEY / OPENAI_API_KEY
   temperature: 0
