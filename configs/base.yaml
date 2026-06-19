@@ -27,3 +27,15 @@ headline_pair: [opponent_modeling, deduction]
 n_permutation: 1000
 n_bootstrap: 1000
 n_seeds: 3
+
+# LLM judge / annotator (SPEC §2.3). OpenAI-COMPATIBLE, so this is also how you use an open model
+# (DeepSeek / Qwen / GLM / Llama) served via vLLM locally or DeepInfra/Together/Fireworks — just set
+# JUDGE_MODEL + JUDGE_BASE_URL. Independence rule: the PRIMARY judge should be a DIFFERENT lineage
+# than the subject model (don't judge DeepSeek-R1-Distill-Qwen chains with a DeepSeek/Qwen judge —
+# use that as the independent SECOND judge for κ instead, SPEC §5-B6).
+judge:
+  provider: openai_compatible
+  model: ${env:JUDGE_MODEL:gpt-4o-mini}
+  base_url: ${env:JUDGE_BASE_URL:}     # empty = OpenAI; e.g. http://localhost:8000/v1 for local vLLM
+  api_key_env: JUDGE_API_KEY           # falls back to OPENAI_API_KEY; "EMPTY" for keyless local servers
+  temperature: 0

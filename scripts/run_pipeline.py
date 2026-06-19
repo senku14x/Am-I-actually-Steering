@@ -26,12 +26,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from strat_geom.activations import extract_activations  # noqa: E402
+from strat_geom.annotate import (  # noqa: E402
+    annotate_chain, annotation_prompt_hash, make_client, validate_taxonomy,
+)
 from strat_geom.config import load_config  # noqa: E402
 from strat_geom.dataset import score_answer  # noqa: E402
 from strat_geom.generate import generate_chains  # noqa: E402
 from strat_geom.io import (  # noqa: E402
-    artifact_path, chains_path, load_tasks, provenance, read_jsonl, segments_path,
-    write_json, write_jsonl,
+    annotations_path, artifact_path, chains_path, load_tasks, provenance, read_jsonl,
+    segments_path, write_json, write_jsonl,
 )
 from strat_geom.segment import realign_failures, segment_chain  # noqa: E402
 
@@ -135,13 +138,41 @@ def main() -> None:
     if "activations" in stages:
         report["activations"] = extract_activations(cfg, chains, dict(segments_by_chain))
 
+    # --- annotate (LLM judge; SPEC §2.3) ----------------------------------
+    if "annotate" in stages:
+        judge_cfg = cfg.extra.get("judge", {})
+        validate_taxonomy(cfg.labels)
+        client = make_client(judge_cfg)
+        ann_records: list[dict] = []
+        total_unknown = 0
+        label_counter: Counter = Counter()
+        for ch in chains:
+            segs = segments_by_chain.get(ch["id"], [])
+            if cfg.think_only:
+                segs = [s for s in segs if s.get("region") == "think"]
+            if not segs:
+                continue
+            recs, n_unknown = annotate_chain(client, judge_cfg, ch, segs, cfg.labels)
+            ann_records.extend(recs)
+            total_unknown += n_unknown
+            for r in recs:
+                label_counter.update(r["labels"])
+        write_jsonl(annotations_path(cfg), ann_records)
+        report["annotation"] = {
+            "n_segments_annotated": len(ann_records),
+            "unknown_labels_dropped": total_unknown,        # >0 => judge drifting off-taxonomy
+            "judge_model": judge_cfg.get("model"),
+            "prompt_hash": annotation_prompt_hash(cfg.labels),
+            "label_distribution": dict(label_counter),
+        }
+
     # --- scoring sanity (D1) ----------------------------------------------
     report["scoring"] = _summarize_scoring(chains, tasks_by_id)
 
     out = artifact_path(cfg, "derisk_report.json")
     write_json(out, report)
     print(f"\nwrote {out}")
-    for k in ("generation", "segmentation", "activations", "scoring"):
+    for k in ("generation", "segmentation", "activations", "annotation", "scoring"):
         if k in report:
             print(f"  {k}: {report[k]}")
 
