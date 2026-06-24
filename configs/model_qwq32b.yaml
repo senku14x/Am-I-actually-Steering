@@ -9,4 +9,5 @@ model_short: qwq32b
 n_layers: 64            # Qwen2.5-32B base; VERIFY from config.json at download
 hidden_dim: 5120        # VERIFY from config.json
 headline_layer: 32      # mid-depth start; set from the per-model layer-sweep (relative depth, §3/§6)
-max_new_tokens: 8192    # QwQ runs LONG; set from the measured length distribution (<10% truncation)
+max_new_tokens: 6144    # ~6k room to reason; QwQ runs LONG, so watch truncation_rate (bump to 8192
+                        # if many chains hit the cap — vLLM makes the longer budget cheap)

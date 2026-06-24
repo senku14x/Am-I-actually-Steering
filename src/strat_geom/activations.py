@@ -10,8 +10,8 @@ magnitudes are calibrated to the actual representation scale of each model.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Any
 
 from .config import Config
 
@@ -63,6 +63,7 @@ def extract_activations(cfg: Config, chains: list[dict], segments_by_chain: dict
     n_pooled = 0
     map_failures = 0
     n_layers_seen = 0
+    index_rows: list[dict] = []
     for chain in chains:
         segs = segments_by_chain.get(chain["id"], [])
         if not segs:
@@ -79,20 +80,26 @@ def extract_activations(cfg: Config, chains: list[dict], segments_by_chain: dict
             hs = model(input_ids, output_hidden_states=True).hidden_states  # (L+1) x [1, T, H]
         n_layers_seen = len(hs)
         seg_vecs = []
-        for seg in segs:
+        for row, seg in enumerate(segs):
             lo, hi = token_span_for_char_span(offsets, seg["char_start"], seg["char_end"])
-            if lo is None:
+            mapped = lo is not None
+            if not mapped:
                 map_failures += 1
                 seg_vecs.append(np.zeros((len(hs), model.config.hidden_size), dtype=np.float16))
-                continue
-            a, b = comp_start + lo, comp_start + hi + 1
-            vec = torch.stack([layer[0, a:b, :].mean(0) for layer in hs]).float().cpu()
-            for li in range(len(hs)):
-                norm_sum[li] = norm_sum.get(li, 0.0) + float(vec[li].norm())
-            n_pooled += 1
-            seg_vecs.append(vec.to(torch.float16).numpy())
+            else:
+                a, b = comp_start + lo, comp_start + hi + 1
+                vec = torch.stack([layer[0, a:b, :].mean(0) for layer in hs]).float().cpu()
+                for li in range(len(hs)):
+                    norm_sum[li] = norm_sum.get(li, 0.0) + float(vec[li].norm())
+                n_pooled += 1
+                seg_vecs.append(vec.to(torch.float16).numpy())
+            # row i of {chain}.npy <-> this (chain_id, seg_idx); the Stage-A loader joins on it.
+            index_rows.append({"chain_id": chain["id"], "seg_idx": seg["seg_idx"],
+                               "region": seg.get("region"), "row": row, "mapped": mapped,
+                               "file": f"{chain['id']}.npy"})
         np.save(out_dir / f"{chain['id']}.npy", np.stack(seg_vecs))
 
+    (out_dir / "index.jsonl").write_text("".join(json.dumps(r) + "\n" for r in index_rows))
     mean_norms = {li: (norm_sum[li] / n_pooled) for li in sorted(norm_sum)} if n_pooled else {}
     return {
         "n_segments_pooled": n_pooled,
@@ -101,8 +108,3 @@ def extract_activations(cfg: Config, chains: list[dict], segments_by_chain: dict
         "mean_act_norm_per_layer": mean_norms,
         "headline_layer_norm": mean_norms.get(cfg.headline_layer),
     }
-
-
-def _as_dicts(segments: list[Any]) -> list[dict]:
-    """Accept Segment dataclasses or plain dicts."""
-    return [s if isinstance(s, dict) else s.to_dict() for s in segments]

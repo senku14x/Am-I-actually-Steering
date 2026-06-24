@@ -18,8 +18,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# GPU host only — generation + activation extraction + interventions
-gpu = ["torch>=2.2", "transformers>=4.44", "accelerate", "tqdm"]
+# GPU host only — generation (vLLM) + activation extraction (transformers) + interventions
+gpu = ["torch>=2.2", "transformers>=4.44", "accelerate", "tqdm", "vllm>=0.6"]
 # LLM annotation / judge
 annotate = ["openai>=1.0", "pydantic>=2.0"]
 dev = ["pytest>=7.0", "ruff>=0.5"]

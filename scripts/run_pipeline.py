@@ -85,7 +85,9 @@ def main() -> None:
     ap.add_argument("--model", required=True, help="path to a configs/model_*.yaml")
     ap.add_argument("--data", default="data/final_dataset_v2.json")
     ap.add_argument("--limit", type=int, default=20, help="first N tasks (de-risk fixture size)")
-    ap.add_argument("--batch-size", type=int, default=8)
+    ap.add_argument("--batch-size", type=int, default=8, help="HF backend batch size")
+    ap.add_argument("--backend", default="vllm", choices=["vllm", "hf"],
+                    help="generation backend (vllm = fast default; hf = transformers fallback)")
     ap.add_argument("--stages", default="generate,segment,activations")
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--judge-model", default=None, help="override judge model (e.g. an openrouter slug)")
@@ -111,7 +113,7 @@ def main() -> None:
 
     # --- generate ----------------------------------------------------------
     if "generate" in stages:
-        chains = generate_chains(cfg, tasks, batch_size=args.batch_size)
+        chains = generate_chains(cfg, tasks, backend=args.backend, batch_size=args.batch_size)
         write_jsonl(chains_path(cfg), chains)
         report["generation"] = _summarize_generation(chains)
     else:

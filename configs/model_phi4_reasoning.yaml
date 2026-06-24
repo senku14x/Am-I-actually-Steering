@@ -7,8 +7,8 @@ n_layers: 40            # VERIFY from config.json at download (14.7B params ⇒ 
 hidden_dim: 5120        # VERIFY from config.json (num_hidden_layers / hidden_size)
 headline_layer: 20      # mid-depth start; SET from the per-model layer-sweep — NOT comparable across
                         # models by raw index (use relative depth; SPEC §3/§6)
-max_new_tokens: 8192    # STARTING value; Phi-4-reasoning chains run long — set from the measured
-                        # length distribution for <10% truncation (likely needs to be higher)
+max_new_tokens: 6144    # ~6k room to reason; Phi-4-reasoning runs long, so watch truncation_rate —
+                        # if high, bump toward 8192 (vLLM makes the longer budget cheap)
 # Think-region scheme — VERIFY against the model card / tokenizer at download (do NOT assume R1's).
 # Read by generate.py/segment.py via Config.extra; the parser is configurable, not hardcoded.
 think_open: "<think>"          # confirm exact delimiter/token

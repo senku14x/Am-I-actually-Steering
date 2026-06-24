@@ -1,0 +1,29 @@
+# Segment-annotation taxonomy (SPEC §2.3; D6 — FIXED for the artifact test). The 10 LABELS are
+# locked in base.yaml; the GLOSSES below are the definitions the judge is shown.
+#
+# IMPORTANT — these glosses are RECONSTRUCTED, not the original paper's. To make the taxonomy
+# genuinely v1's (D6), paste the original annotation-guide definitions here verbatim. Edit only this
+# file: annotate.py loads it, so swapping in the paper's text needs no code change, and the change is
+# captured in the annotation prompt_hash (provenance).
+version: recon-v1
+definitions:
+  opponent_modeling: "Reasoning about the other player(s): their beliefs, incentives, type,
+    rationality, or likely action — putting oneself in the opponent's shoes."
+  iterated_reasoning: "Multi-level recursive reasoning ('I think that they think that I think...'),
+    k-level / level-k thinking, or chains of best responses."
+  equilibrium_identification: "Invoking or locating a solution concept: Nash equilibrium, dominant
+    strategy, subgame-perfect equilibrium, mixed-strategy equilibrium, etc."
+  payoff_analysis: "Computing, comparing, enumerating, or reasoning over concrete payoffs,
+    utilities, values, or outcome rankings."
+  strategic_uncertainty: "Explicit reasoning about uncertainty over the opponent's type, strategy,
+    private information, or future moves (not ordinary arithmetic uncertainty)."
+  cooperative_reasoning: "Reasoning about cooperation, coordination, joint/mutual gains, trust,
+    reciprocity, or fairness between players."
+  initialization: "Setting up the problem: restating the task, listing givens/rules, defining
+    notation, or framing the approach at the start of a segment."
+  deduction: "Step-by-step logical or mathematical inference toward a conclusion (general reasoning
+    not specific to the strategic categories above)."
+  backtracking: "Revisiting, doubting, correcting, or abandoning an earlier line of reasoning
+    ('wait', 'actually', 'let me reconsider', 'that's wrong')."
+  none_other: "None of the above apply: filler, transitions, administrative text, or the final
+    answer statement."

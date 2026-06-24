@@ -25,12 +25,13 @@ import hashlib
 import json
 import os
 import re
+from pathlib import Path
 from typing import Any
 
-# Reconstructed label definitions. NOTE: reconcile against v1's annotation guide before treating
-# the taxonomy as truly "fixed" (D6) — the label SET is locked in base.yaml; these glosses steer the
-# judge and are the part most likely to drift from v1. Keep edits here, in one place.
-LABEL_DEFINITIONS: dict[str, str] = {
+# Default label glosses (fallback). The AUTHORITATIVE copy lives in configs/taxonomy.yaml, so the
+# original paper's definitions can be dropped in there with no code change (D6) — and the swap is
+# captured in the annotation prompt_hash. These defaults are only used for labels that file omits.
+_DEFAULT_DEFINITIONS: dict[str, str] = {
     "opponent_modeling": "reasoning about the other player's beliefs, incentives, type, or likely "
                          "actions",
     "iterated_reasoning": "multi-level 'I think that they think...' / k-level / best-response "
@@ -47,6 +48,25 @@ LABEL_DEFINITIONS: dict[str, str] = {
     "backtracking": "revisiting, correcting, or abandoning an earlier line ('wait, actually...')",
     "none_other": "none of the above apply / filler / administrative text",
 }
+
+
+def load_label_definitions(path: str | None = None) -> dict[str, str]:
+    """Label glosses from configs/taxonomy.yaml (`definitions:`), falling back to the built-in
+    defaults for any label the file omits. Editing that YAML is how you match the original paper."""
+    import yaml  # noqa: PLC0415
+
+    from .io import repo_root  # noqa: PLC0415
+    defs = dict(_DEFAULT_DEFINITIONS)
+    p = Path(path) if path else repo_root() / "configs" / "taxonomy.yaml"
+    try:
+        loaded = (yaml.safe_load(p.read_text()) or {}).get("definitions", {})
+        defs.update({k: str(v) for k, v in loaded.items()})
+    except Exception:
+        pass
+    return defs
+
+
+LABEL_DEFINITIONS: dict[str, str] = load_label_definitions()
 
 _PROMPT_VERSION = "annot-v1"
 
