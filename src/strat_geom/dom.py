@@ -46,11 +46,15 @@ def load_model_segments(cfg: Config, layer: int, judge: str | None = None):
     Joins activation rows (index.jsonl + per-chain .npy) to annotation labels by (chain_id, seg_idx);
     drops unmapped rows and (when cfg.think_only) non-think segments.
     """
-    from .io import activations_dir, annotations_path, read_jsonl
+    from .io import activations_dir, annotations_path, read_jsonl, segments_path
 
     adir = activations_dir(cfg)
     ann = {(r["chain_id"], r["seg_idx"]): r["labels"]
            for r in read_jsonl(annotations_path(cfg, judge))}
+    # region comes from segments.jsonl (authoritative + cheaply re-derivable), NOT the activation
+    # index — so relabelling regions never requires re-extracting activations.
+    region = {(r["chain_id"], r["seg_idx"]): r.get("region")
+              for r in read_jsonl(segments_path(cfg))}
     labels = cfg.labels
     idx = {lab: i for i, lab in enumerate(labels)}
     npy_cache: dict[str, np.ndarray] = {}
@@ -58,9 +62,9 @@ def load_model_segments(cfg: Config, layer: int, judge: str | None = None):
     for row in read_jsonl(adir / "index.jsonl"):
         if not row.get("mapped", True):
             continue
-        if cfg.think_only and row.get("region") != "think":
-            continue
         key = (row["chain_id"], row["seg_idx"])
+        if cfg.think_only and region.get(key) != "think":
+            continue
         if key not in ann:
             continue
         fname = row["file"]
@@ -73,7 +77,7 @@ def load_model_segments(cfg: Config, layer: int, judge: str | None = None):
                 p[idx[lab]] = True
         rows_p.append(p)
         meta.append({"chain_id": row["chain_id"], "seg_idx": row["seg_idx"],
-                     "region": row.get("region")})
+                     "region": region.get(key)})
     X = np.array(rows_X, dtype=np.float32) if rows_X else np.zeros((0, cfg.hidden_dim), np.float32)
     P = np.array(rows_p, dtype=bool) if rows_p else np.zeros((0, len(labels)), dtype=bool)
     return X, P, meta

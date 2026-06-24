@@ -76,12 +76,12 @@ def segment_chain(chain: dict, cfg: Config, max_chars: int = 1200) -> list[Segme
     """Segment a chain record's completion into think/answer segments with exact offsets."""
     completion = chain.get("completion", "")
     cid = chain["id"]
-    # spans may already be on the chain (from generation); else recompute from delimiters.
-    think_span = chain.get("think_span")
-    answer_span = chain.get("answer_span")
-    if think_span is None and answer_span is None:
-        parsed = parse_completion(completion, cfg)
-        think_span, answer_span = parsed["think_span"], parsed["answer_span"]
+    # Always re-parse from the completion so the CURRENT parser/config governs regions (e.g. the
+    # `reasoning` flag), not spans frozen at generation time. Segments (char spans) are identical
+    # either way — only the region label can change — so re-running `segment` alone is enough to
+    # relabel without re-extracting activations.
+    parsed = parse_completion(completion, cfg)
+    think_span, answer_span = parsed["think_span"], parsed["answer_span"]
 
     out: list[Segment] = []
     idx = 0
