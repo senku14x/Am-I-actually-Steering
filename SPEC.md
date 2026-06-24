@@ -15,11 +15,13 @@ Goal: a rigorous workshop paper, rebuilt in a **standalone GitHub repo**, **rege
 artifacts** (chains, segments, annotations, activations). Dedicated GPU(s) available; annotation
 spend is cost-sensitive but the decisive Stage-1 needs **zero new annotation**.
 
-**Decisions locked:** standalone GitHub repo; **three source-model families** —
+**Decisions locked:** standalone GitHub repo; **four source-model families** —
 DeepSeek-R1-Distill-Qwen-14B (primary), DeepSeek-R1-Distill-Llama-8B (second family), and
 **Phi-4-reasoning ~14B** (Microsoft; distinct vendor + *native* reasoning recipe, not an
 R1-distill — breaks the recipe confound; size-matched to Qwen-14B so family/recipe is isolated at
-fixed scale). Plus Qwen2.5-0.5B-Instruct for CI only (not evidence). Geometry on all three (cheap);
+fixed scale), and **QwQ-32B** (Alibaba; native RL-reasoning on the Qwen lineage — isolates training
+recipe vs the R1-distilled Qwen-14B at fixed base, completing the recipe × base-lineage matrix).
+Plus Qwen2.5-0.5B-Instruct for CI only (not evidence). Geometry on all four (cheap);
 interventions Qwen-first. Note: Phi-4-reasoning needs its own think-region parser + chat template —
 read its delimiters and template from the model card/tokenizer at download (do NOT assume R1's
 `<think>`/`</think>` scheme; the parser is config-driven) — and its own headline layer (from the
@@ -62,7 +64,7 @@ staged in the monorepo dev branch for safekeeping; lift to the standalone repo o
 ```
 strategic-geometry-v2/
   SPEC.md  README.md  requirements.txt  .gitignore
-  configs/   base.yaml; model_{qwen0_5b,qwen14b,llama8b,phi4_reasoning}.yaml; exp_{stage1,intervention}.yaml
+  configs/   base.yaml; model_{qwen0_5b,qwen14b,llama8b,phi4_reasoning,qwq32b}.yaml; exp_{stage1,intervention}.yaml
   data/      final_dataset_v2.json; heldout_v2.json   (large artifacts gitignored)
   src/strat_geom/
     config.py dataset.py io.py generate.py segment.py annotate.py activations.py

@@ -1,0 +1,12 @@
+# Qwen/QwQ-32B — fourth source family: NATIVE reasoning recipe on the QWEN lineage (RL-trained, not
+# an R1 distill). Completes the recipe × base-lineage matrix: paired against
+# DeepSeek-R1-Distill-Qwen-14B it isolates training recipe (distill vs native) at fixed base lineage
+# — a cleaner recipe-confound test than Phi-4-reasoning (which also varies vendor). Always-on
+# thinking (<think>/</think>), so no chat-template toggle needed. Geometry/calibration only;
+# interventions stay Qwen-first (SPEC §5/§7).
+model_name: Qwen/QwQ-32B
+model_short: qwq32b
+n_layers: 64            # Qwen2.5-32B base; VERIFY from config.json at download
+hidden_dim: 5120        # VERIFY from config.json
+headline_layer: 32      # mid-depth start; set from the per-model layer-sweep (relative depth, §3/§6)
+max_new_tokens: 8192    # QwQ runs LONG; set from the measured length distribution (<10% truncation)
