@@ -41,3 +41,9 @@ judge:
   temperature: 0
   http_referer: ${env:OPENROUTER_REFERER:}              # optional OpenRouter attribution headers
   x_title: ${env:OPENROUTER_TITLE:strat-geom}
+  # Reasoning judges (GLM-5, DeepSeek V3.2) THINK before answering -> minutes per call + huge output
+  # cost. Annotation only needs direct JSON labels, so turn judge reasoning OFF (OpenRouter passes
+  # this through to the provider; delete this block if a judge 400s on the param).
+  extra_body:
+    reasoning:
+      enabled: false

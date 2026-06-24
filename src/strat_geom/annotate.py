@@ -207,12 +207,17 @@ def make_client(judge_cfg: dict):
 
 
 def _complete(client, judge_cfg: dict, system: str, user: str) -> str:
-    resp = client.chat.completions.create(
-        model=judge_cfg["model"],
-        temperature=judge_cfg.get("temperature", 0),
-        timeout=judge_cfg.get("timeout", 120),          # bound each call so a hang can't stall the run
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-    )
+    kwargs = {
+        "model": judge_cfg["model"],
+        "temperature": judge_cfg.get("temperature", 0),
+        "timeout": judge_cfg.get("timeout", 120),       # bound each call so a hang can't stall the run
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+    }
+    # extra_body is passed straight through to OpenRouter — used to disable judge "reasoning" so a
+    # thinking model (GLM-5, DeepSeek V3.2) returns JSON labels fast instead of reasoning for minutes.
+    if judge_cfg.get("extra_body"):
+        kwargs["extra_body"] = judge_cfg["extra_body"]
+    resp = client.chat.completions.create(**kwargs)
     return resp.choices[0].message.content or ""
 
 
