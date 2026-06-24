@@ -1,0 +1,54 @@
+# Segment-annotation taxonomy (SPEC §2.3; D6 — FIXED for the artifact test). The 10 LABELS are
+# locked in base.yaml; the GLOSSES below are the definitions the judge is shown.
+#
+# These are the ORIGINAL PAPER's annotation-guide definitions (verbatim), so the taxonomy is v1's
+# (D6). annotate.py loads this file; edits here are captured in the annotation prompt_hash.
+# Two cross-cutting rules the paper states explicitly:
+#   * backtracking is cross-cutting — a segment that retracts a payoff computation gets BOTH
+#     backtracking and payoff_analysis.
+#   * deduction is NOT a fallback for annotator uncertainty, and none_other is NOT a tie-breaker
+#     between content labels.
+version: paper-v1
+definitions:
+  # --- Strategic categories ---
+  opponent_modeling: >-
+    Reasoning about what another specific agent believes, knows, wants, will do, or is likely to do.
+    The other agent is referenced explicitly (opponent, bidder, player, rival, they). Not applicable
+    to reasoning about non-agent unknowns.
+  iterated_reasoning: >-
+    Higher-order belief reasoning with two or more levels of nested belief ("they think I think...").
+    This is a rare label; apply only when explicit nested belief structure is present. Not applicable
+    to first-order opponent modeling.
+  equilibrium_identification: >-
+    Identifying or invoking a game-theoretic solution concept by name or structure: Nash
+    equilibrium, dominant strategy, subgame-perfect equilibrium, mixed-strategy equilibrium,
+    iterated elimination, etc. Not applicable to pure payoff comparison without a solution concept.
+  payoff_analysis: >-
+    Computing, comparing, or reasoning over concrete numerical outcomes, utilities, costs, or
+    expected values. Numbers or arithmetic are typically present. Not applicable to pure symbolic
+    manipulation without payoff semantics (that is deduction).
+  strategic_uncertainty: >-
+    Reasoning about unknown information in a strategic setting: hidden types, private values, mixed
+    strategies as a response to uncertainty, updating beliefs over distributions, posterior
+    probabilities, bluffing considerations. Not applicable to general epistemic hedging ("I'm not
+    sure").
+  cooperative_reasoning: >-
+    Analyzing coordination, joint optimization, fairness, trust, or enforcement of cooperative
+    outcomes. Includes grim trigger, tit-for-tat sustainability analysis, coalition formation, and
+    fair-split reasoning. Not applicable to one-off cooperation choices without structural analysis.
+  # --- General categories ---
+  initialization: >-
+    Actively parsing or restating the problem structure: listing players, enumerating actions,
+    restating given payoffs or rules. Not applicable to off-task filler or short section headers.
+  deduction: >-
+    Step-by-step logical derivation, procedural computation, or "if X then Y" inference chains that
+    do not fit a more specific content label. Most common in non-strategic control tasks. Not a
+    fallback for annotator uncertainty; if no label applies, use none/other.
+  backtracking: >-
+    Correcting an earlier error, revising a prior conclusion, or explicitly retracting a previous
+    step. Typical markers: "wait," "actually," "but earlier I thought." This label is cross-cutting:
+    a segment that retracts a payoff computation receives both backtracking and payoff analysis.
+  none_other: >-
+    Filler, transitions, off-task comments, short section headers, meta-remarks about the reasoning
+    process ("let me verify," "I'm getting stuck here"). Used only when no content label applies; not
+    a tie-breaker between content labels.

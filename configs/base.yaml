@@ -1,0 +1,49 @@
+# Base config. Paths use ${env:VAR:default}. Model-specific configs override on top.
+seed: 42
+
+# Data + outputs (env-overridable so the same config works on any host)
+data_dir: ${env:DATA_ROOT:./data}
+results_dir: ${env:RESULTS_ROOT:./results}
+
+# Fixed 10-label taxonomy (D6: frozen for the geometry analysis)
+labels:
+  - opponent_modeling
+  - iterated_reasoning
+  - equilibrium_identification
+  - payoff_analysis
+  - strategic_uncertainty
+  - cooperative_reasoning
+  - initialization
+  - deduction
+  - backtracking
+  - none_other
+
+# Geometry / Stage-A analysis
+think_only: true        # restrict to think-region segments
+min_count: 20           # min segments per label to include in DoM/calibration
+headline_pair: [opponent_modeling, deduction]
+
+# Stage-A null / bootstrap sizes
+n_permutation: 1000
+n_bootstrap: 1000
+n_seeds: 3
+
+# LLM judge / annotator (SPEC §2.3) — OpenRouter. Chosen κ pair: PRIMARY z-ai/glm-5 (off the
+# subject vendors — cleanest for the headline cross-model result), SECOND deepseek/deepseek-v3.2 (the
+# κ judge; same vendor as the subjects' R1 teacher, so it stays the check, not the headline). Run
+# `annotate` once per judge (saved per-judge) and report κ between them (SPEC §5-B6). Both are
+# ~frontier and cheap and hold a 10-label taxonomy fine.
+judge:
+  provider: openrouter
+  model: ${env:JUDGE_MODEL:z-ai/glm-5}                  # primary; κ judge = deepseek/deepseek-v3.2
+  base_url: ${env:JUDGE_BASE_URL:https://openrouter.ai/api/v1}
+  api_key_env: OPENROUTER_API_KEY                        # falls back to JUDGE_API_KEY / OPENAI_API_KEY
+  temperature: 0
+  http_referer: ${env:OPENROUTER_REFERER:}              # optional OpenRouter attribution headers
+  x_title: ${env:OPENROUTER_TITLE:strat-geom}
+  # Reasoning judges (GLM-5, DeepSeek V3.2) THINK before answering -> minutes per call + huge output
+  # cost. Annotation only needs direct JSON labels, so turn judge reasoning OFF (OpenRouter passes
+  # this through to the provider; delete this block if a judge 400s on the param).
+  extra_body:
+    reasoning:
+      enabled: false

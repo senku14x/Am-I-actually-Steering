@@ -1,0 +1,17 @@
+# microsoft/Phi-4-reasoning — third source family. Native reasoning recipe (NOT an R1 distill);
+# breaks the recipe confound and is size-matched to Qwen-14B (fixed-scale family/recipe contrast).
+# Geometry / calibration only — interventions stay Qwen-first (SPEC §5/§7).
+model_name: microsoft/Phi-4-reasoning
+model_short: phi4r
+reasoning: true         # reasoning model; a completion with no </think> is truncated think
+n_layers: 40            # VERIFY from config.json at download (14.7B params ⇒ ~40 layers / 5120 hidden)
+hidden_dim: 5120        # VERIFY from config.json (num_hidden_layers / hidden_size)
+headline_layer: 20      # mid-depth start; SET from the per-model layer-sweep — NOT comparable across
+                        # models by raw index (use relative depth; SPEC §3/§6)
+max_new_tokens: 6144    # ~6k room to reason; Phi-4-reasoning runs long, so watch truncation_rate —
+                        # if high, bump toward 8192 (vLLM makes the longer budget cheap)
+# Think-region scheme — VERIFY against the model card / tokenizer at download (do NOT assume R1's).
+# Read by generate.py/segment.py via Config.extra; the parser is configurable, not hardcoded.
+think_open: "<think>"          # confirm exact delimiter/token
+think_close: "</think>"        # confirm exact delimiter/token
+chat_template: phi4_reasoning  # Phi-4-reasoning Thought/Solution system-prompt format
