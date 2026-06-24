@@ -210,6 +210,7 @@ def _complete(client, judge_cfg: dict, system: str, user: str) -> str:
     resp = client.chat.completions.create(
         model=judge_cfg["model"],
         temperature=judge_cfg.get("temperature", 0),
+        timeout=judge_cfg.get("timeout", 120),          # bound each call so a hang can't stall the run
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
     )
     return resp.choices[0].message.content or ""
@@ -235,27 +236,39 @@ def grade_freeform(client, judge_cfg: dict, record: dict, model_answer: str) -> 
 
 
 def annotate_chains(client, judge_cfg: dict, work: list, labels: list[str],
-                    max_workers: int = 8) -> list:
+                    max_workers: int = 8, progress_every: int = 25) -> list:
     """Annotate many chains concurrently — the judge API is the bottleneck, so threads, not loops.
 
     `work` is a list of (chain, segments). Returns a list aligned to `work` of
-    (records, n_unknown) tuples; a chain whose call errors after retries yields ([], -1) so a single
-    failure can't sink the whole batch (the caller counts the -1s).
+    (records, n_unknown) tuples; a chain whose call errors yields ([], -1) so one failure can't sink
+    the batch (the caller counts the -1s). Prints live progress (every `progress_every` chains) and
+    the first error message so a misconfigured judge surfaces immediately, not at the end.
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: PLC0415
 
-    results: list = [None] * len(work)
+    n = len(work)
+    results: list = [None] * n
+    errors: list = []
 
     def _one(i: int):
         chain, segs = work[i]
         try:
-            return i, annotate_chain(client, judge_cfg, chain, segs, labels)
-        except Exception:
-            return i, ([], -1)
+            return i, annotate_chain(client, judge_cfg, chain, segs, labels), None
+        except Exception as exc:                         # noqa: BLE001 — report, don't crash the run
+            return i, ([], -1), repr(exc)
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = [ex.submit(_one, i) for i in range(len(work))]
+        futures = [ex.submit(_one, i) for i in range(n)]
+        done = 0
         for fut in as_completed(futures):
-            i, res = fut.result()
+            i, res, err = fut.result()
             results[i] = res
+            if err:
+                errors.append(err)
+            done += 1
+            if progress_every and (done % progress_every == 0 or done == n):
+                n_fail = sum(1 for r in results if r is not None and r[1] < 0)
+                print(f"  annotate: {done}/{n} chains ({n_fail} failed)", flush=True)
+    if errors:
+        print(f"  first annotate error: {errors[0]}", flush=True)
     return results
