@@ -53,10 +53,14 @@ def parse_completion(completion: str, cfg: Config) -> dict:
     """Split a completion into think/answer character spans using the model's delimiters.
 
     Matching the literal delimiter (`</think>`) is safe — unlike v1's search for arbitrary segment
-    *content*, a structural marker is unambiguous. Handles three shapes:
+    *content*, a structural marker is unambiguous. Handles four shapes:
       * open + close present      -> think = between them
       * close only (template ate the opener, common for R1 distills) -> think = [0, close)
-      * neither (plain instruct, e.g. the 0.5B CI model)             -> all answer
+      * neither, reasoning model  -> the `<think>` opener lives in the prompt and the chain was
+        truncated before `</think>`, so the whole completion is unfinished THINK (set
+        `reasoning: true` in the model config). This recovers truncated chains instead of
+        mislabelling them as answer.
+      * neither, plain instruct (0.5B CI model) -> all answer
     Returns {think_span: [s,e]|None, answer_span: [s,e], has_think: bool} with offsets into
     `completion`.
     """
@@ -68,8 +72,11 @@ def parse_completion(completion: str, cfg: Config) -> dict:
         think_start = o + len(open_) if (o != -1 and o < c) else 0
         return {"think_span": [think_start, c], "answer_span": [c + len(close), n], "has_think": True}
     if o != -1:
-        # opened but never closed -> likely truncated mid-think; no answer region.
+        # opened but never closed -> truncated mid-think; no answer region.
         return {"think_span": [o + len(open_), n], "answer_span": [n, n], "has_think": True}
+    if cfg.extra.get("reasoning", False):
+        # opener was in the prompt and the chain hit the token cap before `</think>` -> all think.
+        return {"think_span": [0, n], "answer_span": [n, n], "has_think": True}
     return {"think_span": None, "answer_span": [0, n], "has_think": False}
 
 

@@ -38,6 +38,15 @@ def test_parse_no_tags_is_all_answer():
     assert p["answer_span"] == [0, len(comp)]
 
 
+def test_parse_reasoning_model_no_tags_is_all_think():
+    # reasoning model (<think> in the prompt) truncated before </think> -> whole completion is think
+    cfg = _cfg(reasoning=True)
+    comp = "still reasoning, hit the token cap"
+    p = parse_completion(comp, cfg)
+    assert p["has_think"] and p["think_span"] == [0, len(comp)]
+    assert p["answer_span"] == [len(comp), len(comp)]
+
+
 def test_parse_truncated_midthink_has_empty_answer():
     cfg = _cfg()
     comp = "<think>still thinking, cut off"

@@ -232,3 +232,30 @@ def annotate_chain(client, judge_cfg: dict, chain: dict, segments: list[dict],
 def grade_freeform(client, judge_cfg: dict, record: dict, model_answer: str) -> dict:
     text = _complete(client, judge_cfg, GRADE_SYSTEM, build_grade_prompt(record, model_answer))
     return parse_grade_response(text)
+
+
+def annotate_chains(client, judge_cfg: dict, work: list, labels: list[str],
+                    max_workers: int = 8) -> list:
+    """Annotate many chains concurrently — the judge API is the bottleneck, so threads, not loops.
+
+    `work` is a list of (chain, segments). Returns a list aligned to `work` of
+    (records, n_unknown) tuples; a chain whose call errors after retries yields ([], -1) so a single
+    failure can't sink the whole batch (the caller counts the -1s).
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: PLC0415
+
+    results: list = [None] * len(work)
+
+    def _one(i: int):
+        chain, segs = work[i]
+        try:
+            return i, annotate_chain(client, judge_cfg, chain, segs, labels)
+        except Exception:
+            return i, ([], -1)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = [ex.submit(_one, i) for i in range(len(work))]
+        for fut in as_completed(futures):
+            i, res = fut.result()
+            results[i] = res
+    return results

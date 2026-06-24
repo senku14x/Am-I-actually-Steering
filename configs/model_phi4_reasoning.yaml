@@ -3,6 +3,7 @@
 # Geometry / calibration only — interventions stay Qwen-first (SPEC §5/§7).
 model_name: microsoft/Phi-4-reasoning
 model_short: phi4r
+reasoning: true         # reasoning model; a completion with no </think> is truncated think
 n_layers: 40            # VERIFY from config.json at download (14.7B params ⇒ ~40 layers / 5120 hidden)
 hidden_dim: 5120        # VERIFY from config.json (num_hidden_layers / hidden_size)
 headline_layer: 20      # mid-depth start; SET from the per-model layer-sweep — NOT comparable across

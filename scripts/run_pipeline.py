@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from strat_geom.activations import extract_activations  # noqa: E402
 from strat_geom.annotate import (  # noqa: E402
-    annotate_chain, annotation_prompt_hash, make_client, validate_taxonomy,
+    annotate_chains, annotation_prompt_hash, make_client, validate_taxonomy,
 )
 from strat_geom.config import load_config  # noqa: E402
 from strat_geom.dataset import score_answer  # noqa: E402
@@ -92,6 +92,8 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--judge-model", default=None, help="override judge model (e.g. an openrouter slug)")
     ap.add_argument("--judge-base-url", default=None, help="override judge base_url")
+    ap.add_argument("--judge-concurrency", type=int, default=8,
+                    help="parallel judge API calls during the annotate stage")
     args = ap.parse_args()
 
     overrides = {"seed": args.seed} if args.seed is not None else {}
@@ -152,16 +154,23 @@ def main() -> None:
         judge_model = judge_cfg.get("model")
         validate_taxonomy(cfg.labels)
         client = make_client(judge_cfg)
-        ann_records: list[dict] = []
-        total_unknown = 0
-        label_counter: Counter = Counter()
+        work = []
         for ch in chains:
             segs = segments_by_chain.get(ch["id"], [])
             if cfg.think_only:
                 segs = [s for s in segs if s.get("region") == "think"]
-            if not segs:
+            if segs:
+                work.append((ch, segs))
+        results = annotate_chains(client, judge_cfg, work, cfg.labels,
+                                  max_workers=args.judge_concurrency)
+        ann_records: list[dict] = []
+        total_unknown = 0
+        n_failed = 0
+        label_counter: Counter = Counter()
+        for recs, n_unknown in results:
+            if n_unknown < 0:                                    # chain errored after retries
+                n_failed += 1
                 continue
-            recs, n_unknown = annotate_chain(client, judge_cfg, ch, segs, cfg.labels)
             ann_records.extend(recs)
             total_unknown += n_unknown
             for r in recs:
@@ -170,6 +179,8 @@ def main() -> None:
         write_jsonl(ann_path, ann_records)
         report["annotation"] = {
             "n_segments_annotated": len(ann_records),
+            "n_chains_annotated": len(work) - n_failed,
+            "n_chains_failed": n_failed,
             "unknown_labels_dropped": total_unknown,        # >0 => judge drifting off-taxonomy
             "judge_model": judge_model,
             "annotations_file": str(ann_path),

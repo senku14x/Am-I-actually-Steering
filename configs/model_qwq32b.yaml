@@ -6,6 +6,7 @@
 # interventions stay Qwen-first (SPEC §5/§7).
 model_name: Qwen/QwQ-32B
 model_short: qwq32b
+reasoning: true         # reasoning model; a completion with no </think> is truncated think
 n_layers: 64            # Qwen2.5-32B base; VERIFY from config.json at download
 hidden_dim: 5120        # VERIFY from config.json
 headline_layer: 32      # mid-depth start; set from the per-model layer-sweep (relative depth, §3/§6)
