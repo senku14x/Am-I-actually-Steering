@@ -200,7 +200,8 @@ def make_client(judge_cfg: dict):
         headers["HTTP-Referer"] = judge_cfg["http_referer"]
     if judge_cfg.get("x_title"):
         headers["X-Title"] = judge_cfg["x_title"]
-    kwargs: dict = {"api_key": api_key, "base_url": judge_cfg.get("base_url") or None}
+    kwargs: dict = {"api_key": api_key, "base_url": judge_cfg.get("base_url") or None,
+                    "max_retries": judge_cfg.get("max_retries", 1)}
     if headers:
         kwargs["default_headers"] = headers
     return OpenAI(**kwargs)
@@ -210,7 +211,7 @@ def _complete(client, judge_cfg: dict, system: str, user: str) -> str:
     kwargs = {
         "model": judge_cfg["model"],
         "temperature": judge_cfg.get("temperature", 0),
-        "timeout": judge_cfg.get("timeout", 120),       # bound each call so a hang can't stall the run
+        "timeout": judge_cfg.get("timeout", 90),         # bound each call so a hang can't stall the run
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }
     # extra_body is passed straight through to OpenRouter — used to disable judge "reasoning" so a
